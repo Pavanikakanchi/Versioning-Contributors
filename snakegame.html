@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        canvas {
+            border: 1px solid #000;
+        }
+
+        #scoreboard {
+            margin-top: 20px;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="snakeCanvas" width="600" height="600"></canvas>
+    <div id="scoreboard">Score: 0</div>
+
+    <script>
+        const canvas = document.getElementById('snakeCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreboard = document.getElementById('scoreboard');
+
+        const gridSize = 15;
+        let snake = [{ x: 0, y: 0 }];
+        let food = generateFood();
+        let obstacles = generateObstacles();
+        let direction = 'right';
+        let score = 0;
+
+        function draw() {
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw obstacles
+            ctx.fillStyle = '#333'; // Obstacle color
+            obstacles.forEach(obstacle => {
+                if (obstacle.type === 'square') {
+                    ctx.fillRect(obstacle.x, obstacle.y, gridSize, gridSize);
+                } else if (obstacle.type === 'circle') {
+                    ctx.beginPath();
+                    ctx.arc(obstacle.x + gridSize / 2, obstacle.y + gridSize / 2, gridSize / 2, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.closePath();
+                } else if (obstacle.type === 'triangle') {
+                    ctx.beginPath();
+                    ctx.moveTo(obstacle.x + gridSize / 2, obstacle.y);
+                    ctx.lineTo(obstacle.x, obstacle.y + gridSize);
+                    ctx.lineTo(obstacle.x + gridSize, obstacle.y + gridSize);
+                    ctx.fill();
+                    ctx.closePath();
+                }
+            });
+
+            // Draw snake
+            snake.forEach(segment => {
+                ctx.fillStyle = segment.color || `rgb(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)})`;
+                ctx.fillRect(segment.x, segment.y, gridSize, gridSize);
+            });
+
+            // Draw food
+            ctx.fillStyle = '#00f';
+            ctx.fillRect(food.x, food.y, gridSize, gridSize);
+
+            // Update scoreboard
+            scoreboard.textContent = `Score: ${score}`;
+        }
+
+        function update() {
+            const head = { ...snake[0] };
+
+            // Update snake direction
+            if (direction === 'right') head.x += gridSize;
+            else if (direction === 'left') head.x -= gridSize;
+            else if (direction === 'up') head.y -= gridSize;
+            else if (direction === 'down') head.y += gridSize;
+
+            // Check if snake eats food
+            if (head.x === food.x && head.y === food.y) {
+                snake.push({ ...head });
+                food = generateFood();
+                score++;
+                changeSnakeColor();
+            } else {
+                // Move snake
+                snake.pop();
+                snake.unshift(head);
+
+                // Check if snake hits the boundary or obstacle
+                if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height || hitObstacle(head)) {
+                    endGame();
+                }
+            }
+        }
+
+        function generateFood() {
+            return {
+                x: Math.floor(Math.random() * (canvas.width / gridSize)) * gridSize,
+                y: Math.floor(Math.random() * (canvas.height / gridSize)) * gridSize
+            };
+        }
+
+        function generateObstacles() {
+            const numObstacles = 4;
+            const obstacles = [];
+            for (let i = 0; i < numObstacles; i++) {
+                const obstacleType = Math.random() < 0.5 ? 'square' : Math.random() < 0.5 ? 'circle' : 'triangle';
+                obstacles.push({
+                    x: Math.floor(Math.random() * (canvas.width / gridSize)) * gridSize,
+                    y: Math.floor(Math.random() * (canvas.height / gridSize)) * gridSize,
+                    type: obstacleType
+                });
+            }
+            return obstacles;
+        }
+
+        function hitObstacle(head) {
+            return obstacles.some(obstacle => {
+                if (obstacle.type === 'square') {
+                    return head.x === obstacle.x && head.y === obstacle.y;
+                } else if (obstacle.type === 'circle') {
+                    return (
+                        head.x > obstacle.x &&
+                        head.x < obstacle.x + gridSize &&
+                        head.y > obstacle.y &&
+                        head.y < obstacle.y + gridSize
+                    );
+                } else if (obstacle.type === 'triangle') {
+                    return (
+                        head.x > obstacle.x &&
+                        head.x < obstacle.x + gridSize &&
+                        head.y > obstacle.y &&
+                        head.y < obstacle.y + gridSize
+                    );
+                }
+                return false;
+            });
+        }
+
+        function changeSnakeColor() {
+            // Change snake color randomly
+            snake.forEach(segment => {
+                segment.color = `rgb(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)})`;
+            });
+        }
+
+        function endGame() {
+            const playAgain = confirm(`Game Over! Your score is ${score}. Do you want to play again?`);
+            if (playAgain) {
+                snake = [{ x: 0, y: 0 }];
+                food = generateFood();
+                obstacles = generateObstacles();
+                direction = 'right';
+                score = 0;
+            } else {
+                alert('Thanks for playing! Come back again.');
+                window.location.reload();
+            }
+        }
+
+        function gameLoop() {
+            draw();
+            update();
+            setTimeout(() => {
+                requestAnimationFrame(gameLoop);
+            }, 100); // Adjust the delay (in milliseconds) to control the snake's speed
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowUp' && direction !== 'down') {
+                direction = 'up';
+            } else if (event.key === 'ArrowDown' && direction !== 'up') {
+                direction = 'down';
+            } else if (event.key === 'ArrowLeft' && direction !== 'right') {
+                direction = 'left';
+            } else if (event.key === 'ArrowRight' && direction !== 'left') {
+                direction = 'right';
+            }
+        });
+
+        gameLoop();
+    </script>
+</body>
+</html>
